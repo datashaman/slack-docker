@@ -1,5 +1,6 @@
 import docker
 import os
+import re
 import yaml
 
 from slackclient import SlackClient
@@ -14,18 +15,31 @@ slack_client = SlackClient(os.environ.get('SLACK_TOKEN'))
 
 for event in docker_client.events(decode=True):
     if event['Type'] in config['events'] and \
-            event['Action'] in config['events'][event['Type']]:
-        params = {}
-        params.update(config['defaults'])
+            event['Action'] in config['events'][event['Type']]['actions']:
+        skip = False
 
-        if config['events'][event['Type']][event['Action']]:
-            params.update(config['events'][event['Type']][event['Action']])
+        if 'except' in config['events'][event['Type']]:
+            for defn in config['events'][event['Type']]['except']:
+                (filter_type, filter_pattern) = defn.split('=')
 
-        params['text'] = Template(params['text']).substitute(
-            action=event['Action'],
-            image=event['Actor']['Attributes'].get('image'),
-            name=event['Actor']['Attributes']['name'],
-            type=event['Type']
-        )
+                if filter_type == 'name':
+                    if re.search(filter_pattern,
+                                 event['Actor']['Attributes']['name']):
+                        skip = True
+                        continue
 
-        slack_client.api_call('chat.postMessage', **params)
+        if not skip:
+            params = {}
+            params.update(config['defaults'])
+
+            if config['events'][event['Type']]['actions'][event['Action']]:
+                params.update(config['events'][event['Type']]['actions'][event['Action']])
+
+            params['text'] = Template(params['text']).substitute(
+                action=event['Action'],
+                image=event['Actor']['Attributes'].get('image'),
+                name=event['Actor']['Attributes']['name'],
+                type=event['Type']
+            )
+
+            slack_client.api_call('chat.postMessage', **params)
