@@ -1,4 +1,4 @@
-TAG = datashaman/docker-slack
+TAG = datashaman/slack-docker
 
 build:
 	docker build . -t $(TAG)
