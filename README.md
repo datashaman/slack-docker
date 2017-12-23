@@ -22,3 +22,14 @@ vim config.yml
 ```
 python app.py
 ```
+
+## Docker
+
+```
+docker pull datashaman/docker-slack
+docker run -it --rm \
+    -e SLACK_TOKEN=${SLACK_TOKEN} \
+    -v ${PWD}/config.yml:/var/app/config.yml \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    datashaman/docker-slack
+```
