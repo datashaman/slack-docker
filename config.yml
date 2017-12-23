@@ -1,0 +1,15 @@
+defaults:
+    channel: "#ci"
+    icon_emoji: ":whale:"
+    username: "docker"
+    text: "$action $type `$name` $image"
+
+events:
+    container:
+        destroy:
+        kill:
+        start:
+
+    network:
+        create:
+        destroy:
