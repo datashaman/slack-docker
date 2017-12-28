@@ -16,30 +16,40 @@ slack_client = SlackClient(os.environ.get('SLACK_TOKEN'))
 for event in docker_client.events(decode=True):
     if event['Type'] in config['events'] and \
             event['Action'] in config['events'][event['Type']]['actions']:
-        skip = False
+        event_defn = config['events'][event['Type']]
 
-        if 'except' in config['events'][event['Type']]:
-            for defn in config['events'][event['Type']]['except']:
+        def match(which):
+            for defn in event_defn[which]:
                 (filter_type, filter_pattern) = defn.split('=')
 
-                if filter_type == 'name':
-                    if re.search(filter_pattern,
-                                 event['Actor']['Attributes']['name']):
-                        skip = True
-                        continue
+                if filter_type == 'image' and \
+                    re.search(filter_pattern,
+                              event['Actor']['Attributes']['image']):
+                        return True
 
-        if not skip:
-            params = {}
-            params.update(config['defaults'])
+                if filter_type == 'name' and \
+                    re.search(filter_pattern,
+                              event['Actor']['Attributes']['name']):
+                        return True
+            return False
 
-            if config['events'][event['Type']]['actions'][event['Action']]:
-                params.update(config['events'][event['Type']]['actions'][event['Action']])
+        if 'only' in event_defn and not match('only'):
+            continue
 
-            params['text'] = Template(params['text']).substitute(
-                action=event['Action'],
-                image=event['Actor']['Attributes'].get('image'),
-                name=event['Actor']['Attributes']['name'],
-                type=event['Type']
-            )
+        if 'except' in event_defn and match('except'):
+            continue
 
-            slack_client.api_call('chat.postMessage', **params)
+        params = {}
+        params.update(config['defaults'])
+
+        if event_defn['actions'][event['Action']]:
+            params.update(event_defn['actions'][event['Action']])
+
+        params['text'] = Template(params['text']).substitute(
+            action=event['Action'],
+            image=event['Actor']['Attributes'].get('image'),
+            name=event['Actor']['Attributes']['name'],
+            type=event['Type']
+        )
+
+        slack_client.api_call('chat.postMessage', **params)
